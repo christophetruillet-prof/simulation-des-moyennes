@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Simulation de moyennes simplifiée</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { display: flex; gap: 20px; font-family: Arial; padding: 20px; }
+#params { width: 300px; padding: 10px; border: 1px solid #aaa; border-radius: 8px; }
+#results { flex: 1; }
+.sim-block { background: #f5f5f5; padding: 8px; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid black; }
+button { margin-top: 5px; }
+</style>
+</head>
+
+<body>
+<div id="params">
+  <h3>Paramètres</h3>
+  <p><strong>Population : N(30, 0.5)</strong></p>
+  <label>Nombre de mesures par échantillon (2 à 30)</label><br>
+  <input type="number" id="n" min="2" max="30" value="10"><br><br>
+  <label>Superposer les histogrammes ?</label>
+  <input type="checkbox" id="superpose"><br><br>
+  <button onclick="simulate()">Lancer une simulation</button>
+  <button onclick="clearSim()">Effacer</button>
+</div>
+
+<div id="results">
+  <canvas id="chart"></canvas>
+  <h3>Résultats</h3>
+  <div id="stats"></div>
+</div>
+
+<script>
+const N_SAMPLES = 100000;
+const POP_MEAN = 30;
+const POP_STD = 0.5;
+const BINS = 100;
+
+let chart = null;
+let simCount = 0;
+
+// Générateur loi normale
+function normalRandom() {
+  let u=Math.random(), v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)*POP_STD + POP_MEAN;
+}
+
+// Couleurs RGBA pour histogrammes
+function getColorRGBA(i){
+  const colors = [
+    "rgba(255,0,0,0.5)",   // rouge
+    "rgba(0,0,255,0.5)",   // bleu
+    "rgba(0,128,0,0.5)",   // vert
+    "rgba(255,165,0,0.5)"  // orange
+  ];
+  return colors[(i-1)%colors.length];
+}
+
+function simulate(){
+  const n = parseInt(document.getElementById("n").value);
+  const superpose = document.getElementById("superpose").checked;
+
+  if(!superpose) simCount=0;
+  if(simCount>=4){ alert("Maximum 4 histogrammes superposés"); return; }
+  simCount++;
+
+  // --- Calcul des moyennes
+  let means = [];
+  for(let i=0;i<N_SAMPLES;i++){
+    let sum=0;
+    for(let k=0;k<n;k++) sum+=normalRandom();
+    means.push(sum/n);
+  }
+
+  // --- Paramètres empiriques
+  const meanEmp = means.reduce((a,b)=>a+b,0)/means.length;
+  const sdEmp = Math.sqrt(means.map(x=>(x-meanEmp)**2).reduce((a,b)=>a+b,0)/means.length);
+
+  // --- Affichage paramètres
+  const statsDiv=document.getElementById("stats");
+  const block=document.createElement("div");
+  block.className="sim-block";
+  block.style.borderLeftColor=getColorRGBA(simCount).replace("0.5","1");
+  block.innerHTML=`<strong>Simulation ${simCount}</strong><br>
+                   Moyenne empirique : ${meanEmp.toFixed(4)}<br>
+                   Écart-type empirique : ${sdEmp.toFixed(4)}<br>
+                   n = ${n}`;
+  statsDiv.appendChild(block);
+
+  // --- Histogramme
+  const minX = POP_MEAN - 4*POP_STD;
+  const maxX = POP_MEAN + 4*POP_STD;
+  const binSize = (maxX - minX)/BINS;
+  let hist = Array(BINS).fill(0);
+  means.forEach(v=>{
+    let idx = Math.floor((v - minX)/binSize);
+    if(idx>=0 && idx<BINS) hist[idx]++;
+  });
+  hist = hist.map(h => h / (N_SAMPLES * binSize)); // densité
+
+  // --- Labels = centre des bins
+  const histLabels = Array.from({length: BINS}, (_, i) => +(minX + i*binSize + binSize/2).toFixed(2));
+
+  // --- Chart.js
+  if(!chart || !superpose){
+    if(chart) chart.destroy();
+    chart=new Chart(document.getElementById("chart"),{
+      type:"bar",
+      data:{ labels: histLabels, datasets: [] },
+      options:{
+        responsive:true,
+        scales:{
+          x:{
+            title:{display:true,text:"Valeurs"},
+            ticks:{
+              stepSize:0.5
+            }
+          },
+          y:{
+            title:{display:true,text:"Densité"},
+            beginAtZero:true
+          }
+        }
+      }
+    });
+  }
+
+  // --- Dataset histogramme
+  chart.data.datasets.push({
+    label: "Histogramme " + simCount,
+    data: hist,
+    borderColor: getColorRGBA(simCount).replace("0.5","1"), // contour opaque
+    backgroundColor: getColorRGBA(simCount),               // remplissage 50%
+    type: "bar",
+    barPercentage: 1.0,
+    categoryPercentage: 1.0,
+    grouped: false
+  });
+
+  // --- Gaussienne population (une seule fois)
+  if(!superpose || simCount===1){
+    let popCurve=[];
+    for(let i=0;i<BINS;i++){
+      let x = minX + i*binSize + binSize/2;
+      popCurve.push((1/(POP_STD*Math.sqrt(2*Math.PI)))*Math.exp(-0.5*((x-POP_MEAN)/POP_STD)**2));
+    }
+    chart.data.datasets.push({
+      label:"Gaussienne population",
+      data:popCurve,
+      borderColor:"black",
+      fill:false,
+      borderWidth:2,
+      type:"line",
+      pointRadius:0
+    });
+  }
+
+  chart.update();
+}
+
+function clearSim(){
+  simCount=0;
+  if(chart) chart.destroy();
+  chart=null;
+  document.getElementById("stats").innerHTML="";
+}
+</script>
+</body>
+</html>
