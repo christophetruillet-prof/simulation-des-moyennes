@@ -18,7 +18,7 @@ button { margin-top: 5px; }
   <h3>Paramètres</h3>
   <p><strong>Population : N(30, 0.5)</strong></p>
   <label>Nombre de mesures par échantillon (2 à 30)</label><br>
-  <input type="number" id="n" min="2" max="30" value="10"><br><br>
+  <input type="number" id="n" min="1" max="30" value="10"><br><br>
   <label>Superposer les histogrammes ?</label>
   <input type="checkbox" id="superpose"><br><br>
   <button onclick="simulate()">Lancer une simulation</button>
@@ -49,10 +49,10 @@ function normalRandom() {
 // Couleurs RGBA pour histogrammes
 function getColorRGBA(i){
   const colors = [
-    "rgba(255,0,0,0.5)",   // rouge
-    "rgba(0,0,255,0.5)",   // bleu
-    "rgba(0,128,0,0.5)",   // vert
-    "rgba(255,165,0,0.5)"  // orange
+    "rgba(255,0,0,0.7)",   // rouge
+    "rgba(0,0,255,0.7)",   // bleu
+    "rgba(0,128,0,0.7)",   // vert
+    "rgba(255,165,0,0.7)"  // orange
   ];
   return colors[(i-1)%colors.length];
 }
@@ -168,3 +168,4 @@ function clearSim(){
 </script>
 </body>
 </html>
+
